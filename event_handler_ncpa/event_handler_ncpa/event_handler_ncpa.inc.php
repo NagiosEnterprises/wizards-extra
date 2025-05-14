@@ -13,7 +13,7 @@ function event_handler_ncpa_configwizard_init()
     $name = "event_handler_ncpa";
     $args = array(
         CONFIGWIZARD_NAME => $name,
-        CONFIGWIZARD_VERSION => "1.0.0",
+        CONFIGWIZARD_VERSION => "1.0.1",
         CONFIGWIZARD_TYPE => CONFIGWIZARD_TYPE_MONITORING,
         CONFIGWIZARD_DESCRIPTION => _("Add an event handler from a remote host via NCPA."),
         CONFIGWIZARD_DISPLAYTITLE => "Remote Event Handler",
@@ -123,7 +123,6 @@ function event_handler_ncpa_configwizard_func($mode = "", $inargs = null, &$outa
 
             // Get variables that were passed to us
             $address = grab_array_var($inargs, "ip_address");
-            // print_r("VALIDATESTAGE2DATA -> " . $inargs);
 
             $ha = @gethostbyaddr($address);
 
@@ -166,7 +165,6 @@ function event_handler_ncpa_configwizard_func($mode = "", $inargs = null, &$outa
             $token = grab_array_var($inargs, "token");
             $arguments = grab_array_var($inargs, "arguments");
             $port = grab_array_var($inargs, "port", "5693");
-            print_r("VALIDATESTAGE2DATA -> " . $inargs);
 
             // Check for errors
             $errors = 0;
@@ -251,7 +249,6 @@ function event_handler_ncpa_configwizard_func($mode = "", $inargs = null, &$outa
             $token = grab_array_var($inargs, "token");
             $arguments = grab_array_var($inargs, "arguments");
             $port = grab_array_var($inargs, "port", "5693");
-            // print_r("GETSTAGE3HTML ->" . $inargs);
 
             $output = '
 
@@ -279,7 +276,6 @@ function event_handler_ncpa_configwizard_func($mode = "", $inargs = null, &$outa
             $arguments = grab_array_var($inargs, "arguments");
             $port = grab_array_var($inargs, "port", "5693");
             break;
-            // print_r("VALIDATESTAGE3DATA ->" . $inargs);
 
         case CONFIGWIZARD_MODE_GETFINALSTAGEHTML:
             $address = grab_array_var($inargs, "ip_address");
@@ -292,7 +288,6 @@ function event_handler_ncpa_configwizard_func($mode = "", $inargs = null, &$outa
             $token = grab_array_var($inargs, "token");
             $arguments = grab_array_var($inargs, "arguments");
             $port = grab_array_var($inargs, "port", "5693");
-            // print_r("GETFINALSTAGEHTML ->" . $inargs);
 
             $output = '
             ';
@@ -328,9 +323,7 @@ function event_handler_ncpa_configwizard_func($mode = "", $inargs = null, &$outa
             $meta_arr["port"] = $port;
             $meta_arr["service_name"] = $service_name;
             save_configwizard_object_meta($wizard_name, $hostname, "", $meta_arr);
-            // print_r("GETOBJECTS ->" . $inargs);
 
-            // print_r($meta_arr);
             
             //DEFINE COMMAND
             $command_name = $event_handler."_".uniqid();
@@ -339,7 +332,6 @@ function event_handler_ncpa_configwizard_func($mode = "", $inargs = null, &$outa
                 "type" => OBJECTTYPE_COMMAND,
                 "command_name" => "$command_name",
                 "command_line" => "/usr/local/nagios/libexec/check_ncpa.py -H " . $address . " -M 'plugins/" . $event_handler . "' -t '" . $token . "' -P '" . $port . "' -a '" . $arguments . "'",
-                "command_type" => "misc", //This does not work 
             );
 
             if (true) {
@@ -350,7 +342,6 @@ function event_handler_ncpa_configwizard_func($mode = "", $inargs = null, &$outa
                     "_xiwizard" => $wizard_name,
                 );
             }
-			// print("Objects: " . print_r($objs, true));
 
             $pluginopts = "";
             $objs[] = array(
