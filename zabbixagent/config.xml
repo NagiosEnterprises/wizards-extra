@@ -1,0 +1,11 @@
+<configwizard>  
+	<templates> 
+		<template filename="zabbixagent.cfg" /> 
+	</templates>
+	<plugins>
+		<plugin filename="check_zabbix_agent_plugin.py" />
+	</plugins> 
+	<logos>
+		<logo filename="zabbix.png" /> 
+	</logos>
+</configwizard> 
