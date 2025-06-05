@@ -114,10 +114,10 @@ function zabbixagent_configwizard_func($mode="",$inargs=null,&$outargs,&$result)
             // get variables that were passed to us
             $address = grab_array_var($inargs, "ip_address");
             $hostname = grab_array_var($inargs, "hostname");
-            $api_url = grab_array_var($inargs, "api_url");
+            // $api_url = grab_array_var($inargs, "api_url");
             $services = grab_array_var($inargs, "services", array());
             $serviceargs = grab_array_var($inargs, "serviceargs", array());
-            
+
             // check for errors
             $errors=0;
             $errmsg=array();
@@ -133,18 +133,13 @@ function zabbixagent_configwizard_func($mode="",$inargs=null,&$outargs,&$result)
             if (is_valid_host_name($hostname) == false) {
                 $errmsg[$errors++] = _("Invalid host name.");
             }
-            if (have_value($api_url) == false) {
-                $errmsg[$errors++] = _("No API URL specified.");
-            } else if (!filter_var($api_url, FILTER_VALIDATE_URL)) {
-                $errmsg[$errors++] = _("Invalid API URL.");
-            }
 
             $required_services = [
                 "cpu" => ["warning" => "Warning threshold for CPU is required.", "critical" => "Critical threshold for CPU is required."],
                 "memory" => ["warning" => "Warning threshold for Memory is required.", "critical" => "Critical threshold for Memory is required."],
                 "disk" => ["warning" => "Warning threshold for Disk is required.", "critical" => "Critical threshold for Disk is required."],
-                "net_in" => ["warning" => "Warning threshold for Network In is required.", "critical" => "Critical threshold for Network In is required."],
-                "net_out" => ["warning" => "Warning threshold for Network Out is required.", "critical" => "Critical threshold for Network Out is required."],
+                "net_in" => ["warning" => "Warning threshold for Network In is required.", "critical" => "Critical threshold for Network In is required." , "interface" => "Interface for Network In is required."],
+                "net_out" => ["warning" => "Warning threshold for Network Out is required.", "critical" => "Critical threshold for Network Out is required.", "interface" => "Interface for Network Out is required."],
                 "process_count" => ["warning" => "Warning threshold for Process Count is required.", "critical" => "Critical threshold for Process Count is required."],
                 "cpu_load" => ["warning" => "Warning threshold for CPU Load is required.", "critical" => "Critical threshold for CPU Load is required."],
                 "hostname" => ["warning" => "Warning threshold for Hostname is required.", "critical" => "Critical threshold for Hostname is required."]
@@ -187,7 +182,7 @@ function zabbixagent_configwizard_func($mode="",$inargs=null,&$outargs,&$result)
                 $outargs[CONFIGWIZARD_PASSBACK_DATA] = array(
                     "hostname" => $hostname,
                     "ip_address" => $address,
-                    "api_url" => $api_url,
+                    // "api_url" => $api_url,
                     "services" => $selected_services,
                     "serviceargs" => $serviceargs
                 );
@@ -238,7 +233,7 @@ function zabbixagent_configwizard_func($mode="",$inargs=null,&$outargs,&$result)
             //get the session data to turn into object configs 
             $hostname = grab_array_var($inargs, "hostname", "");
             $address = grab_array_var($inargs, "ip_address", "");
-            $api_url = grab_array_var($inargs, "api_url", "");
+            // $api_url = grab_array_var($inargs, "api_url", "");
       
         
             $services_serial = grab_array_var($inargs, "services_serial", "");
@@ -249,25 +244,27 @@ function zabbixagent_configwizard_func($mode="",$inargs=null,&$outargs,&$result)
             $services = json_decode(base64_decode($services_serial), true);
             $serviceargs = json_decode(base64_decode($serviceargs_serial), true);
 
-      
             // Sanitize the data
             foreach ($services as $key => $value) {
                 $services[$key] = filter_var($value, FILTER_SANITIZE_FULL_SPECIAL_CHARS);
             }
             foreach ($serviceargs as $key => $args) {
                 foreach ($args as $arg_key => $arg_value) {
-                    $serviceargs[$key][$arg_key] = filter_var($arg_value, FILTER_SANITIZE_NUMBER_FLOAT, FILTER_FLAG_ALLOW_FRACTION);
+                    if (in_array($arg_key, ['warning', 'critical'])) {
+                        $serviceargs[$key][$arg_key] = filter_var($arg_value, FILTER_SANITIZE_NUMBER_FLOAT, FILTER_FLAG_ALLOW_FRACTION);
+                    } else {
+                        // Just sanitize special characters for strings like interface name
+                        $serviceargs[$key][$arg_key] = filter_var($arg_value, FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+                    }
                 }
             }
-
-        
            
             
             //initialize objects array 
             $meta_arr = array();
             $meta_arr["hostname"] = $hostname;
             $meta_arr["ip_address"] = $address;
-            $meta_arr["api_url"] = $api_url;
+            // $meta_arr["api_url"] = $api_url;
             $meta_arr["services"] = $services;
             $meta_arr["serviceargs"] = $serviceargs;
             save_configwizard_object_meta($wizard_name, $hostname, "", $meta_arr);
@@ -289,8 +286,22 @@ function zabbixagent_configwizard_func($mode="",$inargs=null,&$outargs,&$result)
 
 
             foreach ($services as $service => $state) {
-                if ($state === 'on') {
-                    $check_command = "check_zabbix_agent_plugin!-H {$address} !--check {$service} !--warning {$serviceargs[$service]['warning']} !--critical {$serviceargs[$service]['critical']} !--api-url {$api_url}";
+                 if ($state === 'on') {
+                    // Build check command based on step2.php fields and plugin support
+                    $check_command = "check_zabbix_agent_plugin!-H {$address} !--check {$service}";
+
+                    // Add thresholds for all metrics (as in step2.php, all have warning/critical)
+                    $warning = isset($serviceargs[$service]['warning']) ? $serviceargs[$service]['warning'] : '';
+                    $critical = isset($serviceargs[$service]['critical']) ? $serviceargs[$service]['critical'] : '';
+                    $check_command .= " !--warning {$warning} !--critical {$critical}";
+
+                    // Add --interface for net_in and net_out if interface is set
+                    if (($service === 'net_in' || $service === 'net_out') && !empty($serviceargs[$service]['interface'])) {
+                        $interface = isset($serviceargs[$service]['interface']) ? $serviceargs[$service]['interface'] : '';
+                        // Wrap in quotes to preserve interface names like ens33
+                        $check_command .= ' !--interface "' . $interface . '"';
+                    }
+
                     $objs[] = array(
                         "type" => OBJECTTYPE_SERVICE,
                         "host_name" => $hostname,
@@ -300,7 +311,7 @@ function zabbixagent_configwizard_func($mode="",$inargs=null,&$outargs,&$result)
                         "_xiwizard" => $wizard_name,
                     );
                 }
-            }
+            }    
 
             // return the object definitions to the wizard
             $outargs[CONFIGWIZARD_NAGIOS_OBJECTS] = $objs;
