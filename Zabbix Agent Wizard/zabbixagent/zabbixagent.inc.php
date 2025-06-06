@@ -49,9 +49,14 @@ function zabbixagent_configwizard_func($mode="",$inargs=null,&$outargs,&$result)
     //main wizard stage switch     
     switch($mode){
         case CONFIGWIZARD_MODE_GETSTAGE1HTML:
+            if (!isset($_POST['backButton'])) {
+                unset($_SESSION['zabbixagent_wizard_hostname']);
+                unset($_SESSION['zabbixagent_wizard_ip_address']);
+                unset($_SESSION['zabbixagent_wizard_services']);
+                unset($_SESSION['zabbixagent_wizard_serviceargs']);
+            }
             
             $address = grab_array_var($inargs, "ip_address", "");
-            $nodes = get_configwizard_hosts($wizard_name);
 
             ob_start();
             include __DIR__.'/steps/step1.php';
@@ -63,17 +68,20 @@ function zabbixagent_configwizard_func($mode="",$inargs=null,&$outargs,&$result)
         case CONFIGWIZARD_MODE_VALIDATESTAGE1DATA:        
         
             $address = grab_array_var($inargs, "ip_address", "");
-                        
+            if (array_key_exists('zabbixagent_wizard_ip_address', $_SESSION) && $address == "") {
+                $address = $_SESSION['zabbixagent_wizard_ip_address'];
+            }
             $errors=0;
             $errmsg=array();
             if(have_value($address)==false){
                 $errmsg[$errors++]="No host address specified.";
              }
-            
-                
+             if($address){
+                $_SESSION['zabbixagent_wizard_ip_address'] = $address;
+             }
+
             if($errors>0){
-                print_r($errmsg);
-                print("Address: " . $address);
+                $outargs[CONFIGWIZARD_ERROR_MESSAGES] = $errmsg;
                 $result=1;
                 }
             //proceed to next stage if there are no errors, or show stage 1 if there are errors     
@@ -87,10 +95,7 @@ function zabbixagent_configwizard_func($mode="",$inargs=null,&$outargs,&$result)
             if ($ha == "") {
                 $ha = $address;
             }
-
             $hostname = grab_array_var($inargs, "hostname", $ha);
-            $api_url = grab_array_var($inargs, "api_url", "http://{$address}/zabbix/api_jsonrpc.php");
-
             $services_serial = grab_array_var($inargs, "services_serial", "");
             $serviceargs_serial = grab_array_var($inargs, "serviceargs_serial", "");
 
@@ -99,6 +104,19 @@ function zabbixagent_configwizard_func($mode="",$inargs=null,&$outargs,&$result)
             }
             if ($serviceargs_serial != "") {
                 $serviceargs = json_decode(base64_decode($serviceargs_serial), true);
+            }
+
+             if (isset($_SESSION['zabbixagent_wizard_ip_address']) && $address == "") {
+                $address = $_SESSION['zabbixagent_wizard_ip_address'];
+            }
+            if (isset($_SESSION['zabbixagent_wizard_hostname']) && $hostname == "") {
+                $hostname = $_SESSION['zabbixagent_wizard_hostname'];
+            }
+            if (isset($_SESSION['zabbixagent_wizard_services']) && $services_serial == "") {
+                $services_serial = base64_encode(json_encode($_SESSION['zabbixagent_wizard_services']));
+            }
+            if (isset($_SESSION['zabbixagent_wizard_serviceargs']) && $serviceargs_serial == "") {
+                $serviceargs_serial = base64_encode(json_encode($_SESSION['zabbixagent_wizard_serviceargs']));
             }
 
 
@@ -118,6 +136,33 @@ function zabbixagent_configwizard_func($mode="",$inargs=null,&$outargs,&$result)
             $services = grab_array_var($inargs, "services", array());
             $serviceargs = grab_array_var($inargs, "serviceargs", array());
 
+            // Repopulate from session if empty (for back navigation)
+            if (empty($address) && isset($_SESSION['zabbixagent_wizard_ip_address'])) {
+                $address = $_SESSION['zabbixagent_wizard_ip_address'];
+            }
+            if (empty($hostname) && isset($_SESSION['zabbixagent_wizard_hostname'])) {
+                $hostname = $_SESSION['zabbixagent_wizard_hostname'];
+            }
+            if (empty($services) && isset($_SESSION['zabbixagent_wizard_services'])) {
+                $services = $_SESSION['zabbixagent_wizard_services'];
+            }
+            if (empty($serviceargs) && isset($_SESSION['zabbixagent_wizard_serviceargs'])) {
+                $serviceargs = $_SESSION['zabbixagent_wizard_serviceargs'];
+            }
+
+            if ($address) {
+                $_SESSION['zabbixagent_wizard_ip_address'] = $address;
+            }
+            if ($hostname) {
+                $_SESSION['zabbixagent_wizard_hostname'] = $hostname;
+            }
+            if ($services) {
+                $_SESSION['zabbixagent_wizard_services'] = $services;
+            }
+            if ($serviceargs) {
+                $_SESSION['zabbixagent_wizard_serviceargs'] = $serviceargs;
+            }
+            
             // check for errors
             $errors=0;
             $errmsg=array();
@@ -149,26 +194,33 @@ function zabbixagent_configwizard_func($mode="",$inargs=null,&$outargs,&$result)
             error_log("Selected services: " . print_r($services, true));
             error_log("Service arguments: " . print_r($serviceargs, true));
 
+            // Require at least one service to be selected
+            $selected_services_count = 0;
+            foreach ($services as $service => $state) {
+                if ($state === 'on') {
+                    $selected_services_count++;
+                }
+            }
+            if ($selected_services_count === 0) {
+                $errmsg[$errors++] = "You must select at least one service.";
+            }
+
+            // Only validate thresholds for selected services
             foreach ($required_services as $service => $thresholds) {
-                // Only validate if service is selected and is "on"
                 if (isset($services[$service]) && $services[$service] === 'on') {
-                    // Skip threshold validation for uptime
-                    if ($service !== 'uptime') {
-                        foreach ($thresholds as $threshold => $message) {
-                            if (!isset($serviceargs[$service][$threshold]) || 
-                                $serviceargs[$service][$threshold] === '' || 
-                                $serviceargs[$service][$threshold] === null) {
-                                $errmsg[$errors++] = _($message);
-                                error_log("Validation error for $service $threshold");
-                            }
+                    foreach ($thresholds as $threshold => $message) {
+                        if (!isset($serviceargs[$service][$threshold]) ||
+                            $serviceargs[$service][$threshold] === '' ||
+                            $serviceargs[$service][$threshold] === null) {
+                            $errmsg[$errors++] = _($message);
+                            error_log("Validation error for $service $threshold");
                         }
                     }
                 }
             }
 
             if ($errors > 0) {
-                error_log("Total validation errors: $errors");
-                error_log("Error messages: " . print_r($errmsg, true));
+                $outargs[CONFIGWIZARD_ERROR_MESSAGES] = $errmsg;
                 $result = 1;
             } else {
                 // Create a clean services array with only selected services
@@ -182,7 +234,6 @@ function zabbixagent_configwizard_func($mode="",$inargs=null,&$outargs,&$result)
                 $outargs[CONFIGWIZARD_PASSBACK_DATA] = array(
                     "hostname" => $hostname,
                     "ip_address" => $address,
-                    // "api_url" => $api_url,
                     "services" => $selected_services,
                     "serviceargs" => $serviceargs
                 );
@@ -191,7 +242,6 @@ function zabbixagent_configwizard_func($mode="",$inargs=null,&$outargs,&$result)
                 $outargs["services_serial"] = base64_encode(json_encode($selected_services));
                 $outargs["serviceargs_serial"] = base64_encode(json_encode($serviceargs));
             }
-            
                 
             break;
             
@@ -204,11 +254,11 @@ function zabbixagent_configwizard_func($mode="",$inargs=null,&$outargs,&$result)
             $serviceargs = grab_array_var($inargs, "serviceargs", array());
             $services_serial = (!empty($services) ? base64_encode(json_encode($services)) : grab_array_var($inargs, "services_serial", ''));
             $serviceargs_serial = (!empty($serviceargs) ? base64_encode(json_encode($serviceargs)) : grab_array_var($inargs, "serviceargs_serial", ''));
-          
+
             $services = json_decode(base64_decode($services_serial), true);
             $serviceargs = json_decode(base64_decode($serviceargs_serial), true);
 
-           
+
 
             $output = '
             <input type="hidden" name="ip_address" value="' . encode_form_val($address) . '">
@@ -264,7 +314,6 @@ function zabbixagent_configwizard_func($mode="",$inargs=null,&$outargs,&$result)
             $meta_arr = array();
             $meta_arr["hostname"] = $hostname;
             $meta_arr["ip_address"] = $address;
-            // $meta_arr["api_url"] = $api_url;
             $meta_arr["services"] = $services;
             $meta_arr["serviceargs"] = $serviceargs;
             save_configwizard_object_meta($wizard_name, $hostname, "", $meta_arr);
@@ -299,7 +348,7 @@ function zabbixagent_configwizard_func($mode="",$inargs=null,&$outargs,&$result)
                     if (($service === 'net_in' || $service === 'net_out') && !empty($serviceargs[$service]['interface'])) {
                         $interface = isset($serviceargs[$service]['interface']) ? $serviceargs[$service]['interface'] : '';
                         // Wrap in quotes to preserve interface names like ens33
-                        $check_command .= ' !--interface "' . $interface . '"';
+                        $check_command .= ' !--interface \\"' . $interface . '\\"';
                     }
 
                     $objs[] = array(

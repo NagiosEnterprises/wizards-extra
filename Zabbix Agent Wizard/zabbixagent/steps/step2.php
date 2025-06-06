@@ -11,6 +11,10 @@
     <input type="hidden" name="aurora_serial" value="<?= encode_form_val($aurora_serial) ?>">
 <?php
     #include_once __DIR__.'/../../../utils-xi2024-wizards.inc.php';
+     $services = array();
+    if (array_key_exists('zabbixagent_wizard_services', $_SESSION)) {
+        $services = $_SESSION['zabbixagent_wizard_services'];
+    }
 ?>
     <div class="container m-0 g-0">
         <h2 class="mb-2"><?= _('Host Details') ?></h2>
