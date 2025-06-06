@@ -11,6 +11,10 @@
     <input type="hidden" name="aurora_serial" value="<?= encode_form_val($aurora_serial) ?>">
 <?php
     #include_once __DIR__.'/../../../utils-xi2024-wizards.inc.php';
+     $services = array();
+    if (array_key_exists('zabbixagent_wizard_services', $_SESSION)) {
+        $services = $_SESSION['zabbixagent_wizard_services'];
+    }
 ?>
     <div class="container m-0 g-0">
         <h2 class="mb-2"><?= _('Host Details') ?></h2>
@@ -40,20 +44,7 @@
                 </div>
             </div>
         </div>
-
-        <div class="row mb-2">
-            <div class="col-sm-6">
-                <label for="api_url" class="form-label form-item-required"><?= _('API URL:') ?> <?= xi6_info_tooltip(_('URL of the Zabbix API')) ?></label>
-                <div class="input-group position-relative">
-                    <input type="text" name="api_url" id="api_url" value="<?= encode_form_val($api_url) ?>" class="form-control form-control-sm monitor rounded" placeholder="<?= _("Enter API URL:") ?>" >
-                    <div class="invalid-feedback">
-                        <?= _("Please enter the API URL") ?>
-                    </div>
-                    <i id="api_url_Alert" class="visually-hidden position-absolute top-0 start-100 translate-middle icon icon-circle color-ok icon-size-status"></i>
-                </div>
-            </div>
-        </div>
-
+        
         <h2 class="mt-4"><?= _('Available Metrics') ?></h2>
         <p><?= _('Specify which metrics you would like monitor') ?></p>
 
@@ -202,67 +193,85 @@
 
         <div class="row">
             <div class="col-sm-12">
-                <fieldset class="row g-2 mb-1 wz-fieldset align-items-center metrics">
-                    <div class="form-check col-sm-2 d-flex align-items-center">
-                        <input type="checkbox" id="net_in" class="form-check-input me-2" name="services[net_in]" <?= isset($services["net_in"]) && $services["net_in"] ? 'checked="checked"' : '' ?> onchange="updateSelectAll('metrics')">
-                        <label for="net_in" class="form-check-label bold me-2 text-nowrap"><?= _('Network In') ?> <?= xi6_info_tooltip(_("Monitors incoming network traffic")) ?></label>
+            <fieldset class="row g-2 mb-1 wz-fieldset align-items-center metrics">
+                <div class="form-check col-sm-2 d-flex align-items-center">
+                <input type="checkbox" id="net_in" class="form-check-input me-2" name="services[net_in]" <?= isset($services["net_in"]) && $services["net_in"] ? 'checked="checked"' : '' ?> onchange="updateSelectAll('metrics')">
+                <label for="net_in" class="form-check-label bold me-2 text-nowrap"><?= _('Network In') ?> <?= xi6_info_tooltip(_("Monitors incoming network traffic")) ?></label>
+                </div>
+                <div class="col-sm-6 offset-sm-2">
+                <div class="row">
+                    <div class="col-sm-3">
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text">
+                        <i <?= xi6_title_tooltip(_('Warning Threshold (default = 80)')) ?> class="material-symbols-outlined md-warning md-18 md-400">warning</i>
+                        </span>
+                        <input type="text" name="serviceargs[net_in][warning]" id="net_in_warning" value="<?= encode_form_val($serviceargs["net_in"]["warning"] ?? 80) ?>" class="form-control form-control-sm">
+                        <i id="services_net_in_warning_Alert" class="visually-hidden position-absolute top-0 start-100 translate-middle icon icon-circle color-ok icon-size-status"></i>
                     </div>
-                    <div class="col-sm-6 offset-sm-2">
-                        <div class="row">
-                            <div class="col-sm-3">
-                                <div class="input-group input-group-sm">
-                                    <span class="input-group-text">
-                                        <i <?= xi6_title_tooltip(_('Warning Threshold (default = 80)')) ?> class="material-symbols-outlined md-warning md-18 md-400">warning</i>
-                                    </span>
-                                    <input type="text" name="serviceargs[net_in][warning]" id="net_in_warning" value="<?= encode_form_val($serviceargs["net_in"]["warning"] ?? 80) ?>" class="form-control form-control-sm">
-                                    <i id="services_net_in_warning_Alert" class="visually-hidden position-absolute top-0 start-100 translate-middle icon icon-circle color-ok icon-size-status"></i>
-                                </div>
-                            </div>
-                            <div class="col-sm-3">
-                                <div class="input-group input-group-sm">
-                                    <span class="input-group-text">
-                                        <i <?= xi6_title_tooltip(_('Critical Threshold (default = 95)')) ?> class="material-symbols-outlined md-critical md-18 md-400">error</i>
-                                    </span>
-                                    <input type="text" name="serviceargs[net_in][critical]" id="net_in_critical" value="<?= encode_form_val($serviceargs["net_in"]["critical"] ?? 95) ?>" class="form-control form-control-sm">
-                                    <i id="services_net_in_critical_Alert" class="visually-hidden position-absolute top-0 start-100 translate-middle icon icon-circle color-ok icon-size-status"></i>
-                                </div>
-                            </div>
-                        </div>
                     </div>
-                </fieldset>
+                    <div class="col-sm-3">
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text">
+                        <i <?= xi6_title_tooltip(_('Critical Threshold (default = 95)')) ?> class="material-symbols-outlined md-critical md-18 md-400">error</i>
+                        </span>
+                        <input type="text" name="serviceargs[net_in][critical]" id="net_in_critical" value="<?= encode_form_val($serviceargs["net_in"]["critical"] ?? 95) ?>" class="form-control form-control-sm">
+                        <i id="services_net_in_critical_Alert" class="visually-hidden position-absolute top-0 start-100 translate-middle icon icon-circle color-ok icon-size-status"></i>
+                    </div>
+                    </div>
+                    <div class="col-sm-4">
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text">
+                        <i <?= xi6_title_tooltip(_('Network Interface (e.g. eth0, ens33)')) ?> class="material-symbols-outlined md-18 md-400">settings_ethernet</i>
+                        </span>
+                        <input type="text" name="serviceargs[net_in][interface]" id="net_in_interface" value="<?= encode_form_val($serviceargs["net_in"]["interface"] ?? '') ?>" class="form-control form-control-sm" placeholder="<?= _('Interface') ?>">
+                        <i id="services_net_in_interface_Alert" class="visually-hidden position-absolute top-0 start-100 translate-middle icon icon-circle color-ok icon-size-status"></i>
+                    </div>
+                    </div>
+                </div>
+                </div>
+            </fieldset>
             </div>
         </div>
 
         <div class="row">
             <div class="col-sm-12">
-                <fieldset class="row g-2 mb-1 wz-fieldset align-items-center metrics">
-                    <div class="form-check col-sm-2 d-flex align-items-center">
-                        <input type="checkbox" id="net_out" class="form-check-input me-2" name="services[net_out]" <?= isset($services["net_out"]) && $services["net_out"] ? 'checked="checked"' : '' ?> onchange="updateSelectAll('metrics')">
-                        <label for="net_out" class="form-check-label bold me-2 text-nowrap"><?= _('Network Out') ?> <?= xi6_info_tooltip(_("Monitors outgoing network traffic")) ?></label>
+            <fieldset class="row g-2 mb-1 wz-fieldset align-items-center metrics">
+                <div class="form-check col-sm-2 d-flex align-items-center">
+                <input type="checkbox" id="net_out" class="form-check-input me-2" name="services[net_out]" <?= isset($services["net_out"]) && $services["net_out"] ? 'checked="checked"' : '' ?> onchange="updateSelectAll('metrics')">
+                <label for="net_out" class="form-check-label bold me-2 text-nowrap"><?= _('Network Out') ?> <?= xi6_info_tooltip(_("Monitors outgoing network traffic")) ?></label>
+                </div>
+                <div class="col-sm-6 offset-sm-2">
+                <div class="row">
+                    <div class="col-sm-3">
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text">
+                        <i <?= xi6_title_tooltip(_('Warning Threshold (default = 80)')) ?> class="material-symbols-outlined md-warning md-18 md-400">warning</i>
+                        </span>
+                        <input type="text" name="serviceargs[net_out][warning]" id="net_out_warning" value="<?= encode_form_val($serviceargs["net_out"]["warning"] ?? 80) ?>" class="form-control form-control-sm">
+                        <i id="services_net_out_warning_Alert" class="visually-hidden position-absolute top-0 start-100 translate-middle icon icon-circle color-ok icon-size-status"></i>
                     </div>
-                    <div class="col-sm-6 offset-sm-2">
-                        <div class="row">
-                            <div class="col-sm-3">
-                                <div class="input-group input-group-sm">
-                                    <span class="input-group-text">
-                                        <i <?= xi6_title_tooltip(_('Warning Threshold (default = 80)')) ?> class="material-symbols-outlined md-warning md-18 md-400">warning</i>
-                                    </span>
-                                    <input type="text" name="serviceargs[net_out][warning]" id="net_out_warning" value="<?= encode_form_val($serviceargs["net_out"]["warning"] ?? 80) ?>" class="form-control form-control-sm">
-                                    <i id="services_net_out_warning_Alert" class="visually-hidden position-absolute top-0 start-100 translate-middle icon icon-circle color-ok icon-size-status"></i>
-                                </div>
-                            </div>
-                            <div class="col-sm-3">
-                                <div class="input-group input-group-sm">
-                                    <span class="input-group-text">
-                                        <i <?= xi6_title_tooltip(_('Critical Threshold (default = 95)')) ?> class="material-symbols-outlined md-critical md-18 md-400">error</i>
-                                    </span>
-                                    <input type="text" name="serviceargs[net_out][critical]" id="net_out_critical" value="<?= encode_form_val($serviceargs["net_out"]["critical"] ?? 95) ?>" class="form-control form-control-sm">
-                                    <i id="services_net_out_critical_Alert" class="visually-hidden position-absolute top-0 start-100 translate-middle icon icon-circle color-ok icon-size-status"></i>
-                                </div>
-                            </div>
-                        </div>
                     </div>
-                </fieldset>
+                    <div class="col-sm-3">
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text">
+                        <i <?= xi6_title_tooltip(_('Critical Threshold (default = 95)')) ?> class="material-symbols-outlined md-critical md-18 md-400">error</i>
+                        </span>
+                        <input type="text" name="serviceargs[net_out][critical]" id="net_out_critical" value="<?= encode_form_val($serviceargs["net_out"]["critical"] ?? 95) ?>" class="form-control form-control-sm">
+                        <i id="services_net_out_critical_Alert" class="visually-hidden position-absolute top-0 start-100 translate-middle icon icon-circle color-ok icon-size-status"></i>
+                    </div>
+                    </div>
+                    <div class="col-sm-4">
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text">
+                        <i <?= xi6_title_tooltip(_('Network Interface (e.g. eth0, ens33)')) ?> class="material-symbols-outlined md-18 md-400">settings_ethernet</i>
+                        </span>
+                        <input type="text" name="serviceargs[net_out][interface]" id="net_out_interface" value="<?= encode_form_val($serviceargs["net_out"]["interface"] ?? '') ?>" class="form-control form-control-sm" placeholder="<?= _('Interface') ?>">
+                        <i id="services_net_out_interface_Alert" class="visually-hidden position-absolute top-0 start-100 translate-middle icon icon-circle color-ok icon-size-status"></i>
+                    </div>
+                    </div>
+                </div>
+                </div>
+            </fieldset>
             </div>
         </div>
 
