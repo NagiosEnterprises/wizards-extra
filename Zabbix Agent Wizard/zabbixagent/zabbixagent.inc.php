@@ -348,7 +348,7 @@ function zabbixagent_configwizard_func($mode="",$inargs=null,&$outargs,&$result)
                     if (($service === 'net_in' || $service === 'net_out') && !empty($serviceargs[$service]['interface'])) {
                         $interface = isset($serviceargs[$service]['interface']) ? $serviceargs[$service]['interface'] : '';
                         // Wrap in quotes to preserve interface names like ens33
-                        $check_command .= ' !--interface \\"' . $interface . '\\"';
+                        $check_command .= ' !--interface "' . $interface . '"';
                     }
 
                     $objs[] = array(

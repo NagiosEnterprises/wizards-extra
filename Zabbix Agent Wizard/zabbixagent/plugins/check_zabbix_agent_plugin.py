@@ -38,7 +38,7 @@ def check_threshold(value, warning, critical, metric_name, units=""):
         sys.exit(STATE_OK)
 def get_cpu_usage(host_ip, warning, critical):
     try:
-        resp = query_zabbix_agent(host_ip, "system.cpu.util[,idle]")
+        resp = query_zabbix_agent(host_ip, "system.cpu.util[,system]")
         idle = float(resp)
         usage = 100.0 - idle
         check_threshold(usage, warning, critical, "cpu_usage", "%")
