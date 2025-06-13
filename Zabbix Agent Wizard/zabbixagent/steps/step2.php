@@ -340,40 +340,6 @@
                 </fieldset>
             </div>
         </div>
-
-        <div class="row">
-            <div class="col-sm-12">
-                <fieldset class="row g-2 mb-1 wz-fieldset align-items-center metrics">
-                    <div class="form-check col-sm-2 d-flex align-items-center">
-                        <input type="checkbox" id="hostname" class="form-check-input me-2" name="services[hostname]" <?= isset($services["hostname"]) && $services["hostname"] ? 'checked="checked"' : '' ?> onchange="updateSelectAll('metrics')">
-                        <label for="hostname" class="form-check-label bold me-2 text-nowrap"><?= _('Hostname') ?> <?= xi6_info_tooltip(_("Monitors the system hostname")) ?></label>
-                    </div>
-                    <div class="col-sm-6 offset-sm-2">
-                        <div class="row">
-                            <div class="col-sm-3">
-                                <div class="input-group input-group-sm">
-                                    <span class="input-group-text">
-                                        <i <?= xi6_title_tooltip(_('Warning Threshold (default = 0)')) ?> class="material-symbols-outlined md-warning md-18 md-400">warning</i>
-                                    </span>
-                                    <input type="text" name="serviceargs[hostname][warning]" id="hostname_warning" value="<?= encode_form_val($serviceargs["hostname"]["warning"] ?? 0) ?>" class="form-control form-control-sm">
-                                    <i id="services_hostname_warning_Alert" class="visually-hidden position-absolute top-0 start-100 translate-middle icon icon-circle color-ok icon-size-status"></i>
-                                </div>
-                            </div>
-                            <div class="col-sm-3">
-                                <div class="input-group input-group-sm">
-                                    <span class="input-group-text">
-                                        <i <?= xi6_title_tooltip(_('Critical Threshold (default = 0)')) ?> class="material-symbols-outlined md-critical md-18 md-400">error</i>
-                                    </span>
-                                    <input type="text" name="serviceargs[hostname][critical]" id="hostname_critical" value="<?= encode_form_val($serviceargs["hostname"]["critical"] ?? 0) ?>" class="form-control form-control-sm">
-                                    <i id="services_hostname_critical_Alert" class="visually-hidden position-absolute top-0 start-100 translate-middle icon icon-circle color-ok icon-size-status"></i>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </fieldset>
-            </div>
-        </div>
-
     </div> <!-- container -->
 
     <script type="text/javascript" src="<?= get_base_url() ?>includes/js/wizards-bs5.js?<?= get_build_id(); ?>"></script>
