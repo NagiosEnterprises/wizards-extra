@@ -5,25 +5,22 @@ include_once __DIR__.'/../../../utils-xi2024-wizards.inc.php';
 
 zabbixagent_configwizard_init();
 
-function zabbixagent_configwizard_init(){
-    //name / ID for config wizard 
+function zabbixagent_configwizard_init(){ 
     $name="zabbixagent";
     
-    //relevant info for wizard  
     $args=array(
         CONFIGWIZARD_NAME => $name,
         CONFIGWIZARD_TYPE => CONFIGWIZARD_TYPE_MONITORING,
-        CONFIGWIZARD_DESCRIPTION => "This is a developer demo wizard that received data from a Zabbix Agent.", 
+        CONFIGWIZARD_DESCRIPTION => "Monitor data from a Zabbix Agent.", 
         CONFIGWIZARD_DISPLAYTITLE => "Zabbix Agent",
         CONFIGWIZARD_FUNCTION => "zabbixagent_configwizard_func",
         CONFIGWIZARD_PREVIEWIMAGE => "zabbix.png",
-        CONFIGWIZARD_VERSION => "1.0",
-        CONFIGWIZARD_DATE => "2025-02-05",
-        CONFIGWIZARD_COPYRIGHT => "Copyright &copy; 2008-2010 Nagios Enterprises, LLC.",
+        CONFIGWIZARD_VERSION => "1.0.0",
+        CONFIGWIZARD_COPYRIGHT => "Copyright &copy; 2008-2025 Nagios Enterprises, LLC.",
         CONFIGWIZARD_AUTHOR => "Nagios Enterprises, LLC",
-        CONFIGWIZARD_REQUIRES_VERSION => 60100
-    );
-    //register wizard with XI     
+        CONFIGWIZARD_REQUIRES_VERSION => 60100,
+        CONFIGWIZARD_FILTER_GROUPS => array('linux', 'windows'),
+    );  
     register_configwizard($name,$args);
 }
 
@@ -35,18 +32,15 @@ function zabbixagent_configwizard_init(){
  *
  * @return string
  */
-function zabbixagent_configwizard_func($mode="",$inargs=null,&$outargs,&$result){
+function zabbixagent_configwizard_func($mode="",$inargs=null,&$outargs=null,&$result=null){
 
     $wizard_name="zabbixagent";
 
-    // initialize return code and output
     $result=0;
     $output="";
     
-    // initialize output args - pass back the same data we got -> used by XI framework, don't change
     $outargs[CONFIGWIZARD_PASSBACK_DATA]=$inargs;
-    
-    //main wizard stage switch     
+        
     switch($mode){
         case CONFIGWIZARD_MODE_GETSTAGE1HTML:
             if (!isset($_POST['backButton'])) {
@@ -64,7 +58,6 @@ function zabbixagent_configwizard_func($mode="",$inargs=null,&$outargs,&$result)
             
             break;
         
-        //FORM VALIDATION FOR STAGE 1 
         case CONFIGWIZARD_MODE_VALIDATESTAGE1DATA:        
         
             $address = grab_array_var($inargs, "ip_address", "");
@@ -75,7 +68,12 @@ function zabbixagent_configwizard_func($mode="",$inargs=null,&$outargs,&$result)
             $errmsg=array();
             if(have_value($address)==false){
                 $errmsg[$errors++]="No host address specified.";
-             }
+            }else{
+                if(!filter_var($address,FILTER_VALIDATE_IP)){
+                    $errmsg[$errors++]="Invalid Host address. Must enter a valid URL or IP address";
+                }
+                
+            }
              if($address){
                 $_SESSION['zabbixagent_wizard_ip_address'] = $address;
              }
@@ -83,12 +81,10 @@ function zabbixagent_configwizard_func($mode="",$inargs=null,&$outargs,&$result)
             if($errors>0){
                 $outargs[CONFIGWIZARD_ERROR_MESSAGES] = $errmsg;
                 $result=1;
-                }
-            //proceed to next stage if there are no errors, or show stage 1 if there are errors     
+                }   
             break;
             
         case CONFIGWIZARD_MODE_GETSTAGE2HTML:
-            //get variables that were passed to us 
             $address = grab_array_var($inargs, "ip_address");
             $ha = @gethostbyaddr($address);
 
@@ -126,17 +122,13 @@ function zabbixagent_configwizard_func($mode="",$inargs=null,&$outargs,&$result)
             
             break;
         
-        //form validation stage 2 
         case CONFIGWIZARD_MODE_VALIDATESTAGE2DATA:
             
-            // get variables that were passed to us
             $address = grab_array_var($inargs, "ip_address");
             $hostname = grab_array_var($inargs, "hostname");
-            // $api_url = grab_array_var($inargs, "api_url");
             $services = grab_array_var($inargs, "services", array());
             $serviceargs = grab_array_var($inargs, "serviceargs", array());
 
-            // Repopulate from session if empty (for back navigation)
             if (empty($address) && isset($_SESSION['zabbixagent_wizard_ip_address'])) {
                 $address = $_SESSION['zabbixagent_wizard_ip_address'];
             }
@@ -163,17 +155,14 @@ function zabbixagent_configwizard_func($mode="",$inargs=null,&$outargs,&$result)
                 $_SESSION['zabbixagent_wizard_serviceargs'] = $serviceargs;
             }
             
-            // check for errors
             $errors=0;
             $errmsg=array();
             if(have_value($address)==false){
                 $errmsg[$errors++]="No host address specified.";
             }else{
-                
-                    if(!filter_var($address,FILTER_VALIDATE_IP)){
-                        $errmsg[$errors++]="Invalid Host address. Must enter a valid URL or IP address";
-                    }
-                
+                if(!filter_var($address,FILTER_VALIDATE_IP)){
+                    $errmsg[$errors++]="Invalid Host address. Must enter a valid URL or IP address";
+                }
             }
             if (is_valid_host_name($hostname) == false) {
                 $errmsg[$errors++] = _("Invalid host name.");
@@ -187,14 +176,8 @@ function zabbixagent_configwizard_func($mode="",$inargs=null,&$outargs,&$result)
                 "net_out" => ["warning" => "Warning threshold for Network Out is required.", "critical" => "Critical threshold for Network Out is required.", "interface" => "Interface for Network Out is required."],
                 "process_count" => ["warning" => "Warning threshold for Process Count is required.", "critical" => "Critical threshold for Process Count is required."],
                 "cpu_load" => ["warning" => "Warning threshold for CPU Load is required.", "critical" => "Critical threshold for CPU Load is required."],
-                "hostname" => ["warning" => "Warning threshold for Hostname is required.", "critical" => "Critical threshold for Hostname is required."]
             ];
 
-            // Add debug output
-            error_log("Selected services: " . print_r($services, true));
-            error_log("Service arguments: " . print_r($serviceargs, true));
-
-            // Require at least one service to be selected
             $selected_services_count = 0;
             foreach ($services as $service => $state) {
                 if ($state === 'on') {
@@ -205,7 +188,6 @@ function zabbixagent_configwizard_func($mode="",$inargs=null,&$outargs,&$result)
                 $errmsg[$errors++] = "You must select at least one service.";
             }
 
-            // Only validate thresholds for selected services
             foreach ($required_services as $service => $thresholds) {
                 if (isset($services[$service]) && $services[$service] === 'on') {
                     foreach ($thresholds as $threshold => $message) {
@@ -223,7 +205,6 @@ function zabbixagent_configwizard_func($mode="",$inargs=null,&$outargs,&$result)
                 $outargs[CONFIGWIZARD_ERROR_MESSAGES] = $errmsg;
                 $result = 1;
             } else {
-                // Create a clean services array with only selected services
                 $selected_services = array();
                 foreach ($services as $service => $state) {
                     if ($state === 'on') {
@@ -238,7 +219,6 @@ function zabbixagent_configwizard_func($mode="",$inargs=null,&$outargs,&$result)
                     "serviceargs" => $serviceargs
                 );
                 
-                // Properly encode all selected services
                 $outargs["services_serial"] = base64_encode(json_encode($selected_services));
                 $outargs["serviceargs_serial"] = base64_encode(json_encode($serviceargs));
             }
@@ -258,8 +238,6 @@ function zabbixagent_configwizard_func($mode="",$inargs=null,&$outargs,&$result)
             $services = json_decode(base64_decode($services_serial), true);
             $serviceargs = json_decode(base64_decode($serviceargs_serial), true);
 
-
-
             $output = '
             <input type="hidden" name="ip_address" value="' . encode_form_val($address) . '">
             <input type="hidden" name="hostname" value="' . encode_form_val($hostname) . '">
@@ -276,25 +254,15 @@ function zabbixagent_configwizard_func($mode="",$inargs=null,&$outargs,&$result)
         case CONFIGWIZARD_MODE_GETFINALSTAGEHTML:
             $output = '';
             break;
-        
-        //commit the wizard data into objects definitions to be imported 
+
         case CONFIGWIZARD_MODE_GETOBJECTS:
-        
-            //get the session data to turn into object configs 
+
             $hostname = grab_array_var($inargs, "hostname", "");
             $address = grab_array_var($inargs, "ip_address", "");
-            // $api_url = grab_array_var($inargs, "api_url", "");
-      
-        
             $services_serial = grab_array_var($inargs, "services_serial", "");
             $serviceargs_serial = grab_array_var($inargs, "serviceargs_serial", "");
-
-            
-
             $services = json_decode(base64_decode($services_serial), true);
             $serviceargs = json_decode(base64_decode($serviceargs_serial), true);
-
-            // Sanitize the data
             foreach ($services as $key => $value) {
                 $services[$key] = filter_var($value, FILTER_SANITIZE_FULL_SPECIAL_CHARS);
             }
@@ -303,14 +271,10 @@ function zabbixagent_configwizard_func($mode="",$inargs=null,&$outargs,&$result)
                     if (in_array($arg_key, ['warning', 'critical'])) {
                         $serviceargs[$key][$arg_key] = filter_var($arg_value, FILTER_SANITIZE_NUMBER_FLOAT, FILTER_FLAG_ALLOW_FRACTION);
                     } else {
-                        // Just sanitize special characters for strings like interface name
                         $serviceargs[$key][$arg_key] = filter_var($arg_value, FILTER_SANITIZE_FULL_SPECIAL_CHARS);
                     }
                 }
             }
-           
-            
-            //initialize objects array 
             $meta_arr = array();
             $meta_arr["hostname"] = $hostname;
             $meta_arr["ip_address"] = $address;
@@ -318,8 +282,7 @@ function zabbixagent_configwizard_func($mode="",$inargs=null,&$outargs,&$result)
             $meta_arr["serviceargs"] = $serviceargs;
             save_configwizard_object_meta($wizard_name, $hostname, "", $meta_arr);
 
-            $objs = array();
-            //make sure it's not a duplicate hostname 
+            $objs = array(); 
             if(!host_exists($hostname))
             {
                 $objs[]=array(
@@ -336,18 +299,12 @@ function zabbixagent_configwizard_func($mode="",$inargs=null,&$outargs,&$result)
 
             foreach ($services as $service => $state) {
                  if ($state === 'on') {
-                    // Build check command based on step2.php fields and plugin support
                     $check_command = "check_zabbix_agent_plugin!-H {$address} !--check {$service}";
-
-                    // Add thresholds for all metrics (as in step2.php, all have warning/critical)
                     $warning = isset($serviceargs[$service]['warning']) ? $serviceargs[$service]['warning'] : '';
                     $critical = isset($serviceargs[$service]['critical']) ? $serviceargs[$service]['critical'] : '';
                     $check_command .= " !--warning {$warning} !--critical {$critical}";
-
-                    // Add --interface for net_in and net_out if interface is set
                     if (($service === 'net_in' || $service === 'net_out') && !empty($serviceargs[$service]['interface'])) {
                         $interface = isset($serviceargs[$service]['interface']) ? $serviceargs[$service]['interface'] : '';
-                        // Wrap in quotes to preserve interface names like ens33
                         $check_command .= ' !--interface "' . $interface . '"';
                     }
 
@@ -362,7 +319,6 @@ function zabbixagent_configwizard_func($mode="",$inargs=null,&$outargs,&$result)
                 }
             }    
 
-            // return the object definitions to the wizard
             $outargs[CONFIGWIZARD_NAGIOS_OBJECTS] = $objs;
         
             break;
